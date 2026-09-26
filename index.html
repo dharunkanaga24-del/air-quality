@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Next-Gen Realtime Air Quality Monitor and IoT Telemetry Dashboard powered by Firebase Realtime Database and ESP8266/ESP32 sensors.">
+  <title>AeroPulse — Realtime Air Quality Telemetry & IoT Monitor</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js for silky smooth canvas graphics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+            <path d="M7 15h.01"/>
+            <path d="M10 13h.01"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">
+            AeroPulse <span class="brand-badge">IoT v2.0</span>
+          </h1>
+        </div>
+      </div>
+
+      <div class="header-status-area">
+        <div class="status-pill demo" id="statusPill">
+          <div class="pulse-dot"></div>
+          <span id="statusText">Simulation Mode (Active)</span>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-toggle-mode" id="modeToggleBtn" title="Switch between Demo Mode and Live Firebase">
+            <span>⚡ Live Firebase</span>
+          </button>
+          
+          <button class="btn btn-icon" id="openFirebaseBtn" title="Configure Firebase Database Credentials">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+
+          <button class="btn btn-icon" id="openHardwareBtn" title="Arduino / ESP32 Code & Wiring Schematic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+          </button>
+
+          <button class="btn btn-icon" id="openAlertsBtn" title="Alert Notification Settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          </button>
+
+          <button class="btn btn-icon" id="themeToggleBtn" title="Toggle Theme">
+            ☀️
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hazard Alert Banner -->
+    <div class="alert-banner hidden" id="alertBanner">
+      <div class="alert-content">
+        <span class="alert-icon">⚠️</span>
+        <span id="alertText">Warning: Air Quality Index has exceeded safe thresholds!</span>
+      </div>
+      <button class="btn" id="dismissAlertBtn" style="padding: 4px 10px; font-size: 0.75rem;">Dismiss</button>
+    </div>
+
+    <!-- Simulator Control Dock (Visible in Demo mode) -->
+    <section class="simulator-dock" id="simulatorDock">
+      <div class="sim-header">
+        <div class="sim-title">
+          <span>🎮 Interactive Atmosphere Simulator</span>
+        </div>
+        <div class="sim-presets">
+          <button class="preset-btn" data-preset="forest">🌲 Forest Clean</button>
+          <button class="preset-btn" data-preset="urban">🏙️ Urban Normal</button>
+          <button class="preset-btn" data-preset="kitchen">🍳 Cooking / Smoke</button>
+          <button class="preset-btn" data-preset="traffic">🚗 Heavy Traffic</button>
+          <button class="preset-btn" data-preset="smog">🔥 Wildfire Smog</button>
+        </div>
+      </div>
+      
+      <div class="sim-controls-grid">
+        <div class="sim-control-item">
+          <div class="sim-control-label">
+            <span>Air Quality / Gas Pollution</span>
+          </div>
+          <input type="range" min="10" max="450" value="38" class="sim-slider" id="simAqiSlider">
+        </div>
+        <div class="sim-control-item">
+          <div class="sim-control-label">
+            <span>Temperature (°C)</span>
+          </div>
+          <input type="range" min="10" max="45" value="23" class="sim-slider" id="simTempSlider">
+        </div>
+        <div class="sim-control-item">
+          <div class="sim-control-label">
+            <span>Humidity (%)</span>
+          </div>
+          <input type="range" min="15" max="95" value="48" class="sim-slider" id="simHumSlider">
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Grid -->
+    <main class="dashboard-grid">
+      <!-- Left Column: Hero AQI Gauge -->
+      <section class="glass-card hero-card">
+        <div>
+          <div class="card-header-flex">
+            <h2 class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              Air Quality Index (AQI)
+            </h2>
+            <div class="aqi-badge-status" id="aqiStatusBadge">Good</div>
+          </div>
+
+          <!-- Circular Radial Gauge -->
+          <div class="gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 240 240">
+              <circle class="gauge-bg" cx="120" cy="120" r="100" />
+              <circle class="gauge-fill" id="gaugeCircle" cx="120" cy="120" r="100" />
+            </svg>
+            <div class="gauge-content">
+              <span class="aqi-number" id="aqiVal">38</span>
+              <span class="aqi-unit">AQI US EPA</span>
+            </div>
+          </div>
+
+          <!-- AQI Scale Spectrum Bar -->
+          <div class="aqi-scale-bar-wrapper">
+            <div class="scale-track">
+              <div class="scale-marker" id="scaleMarker"></div>
+            </div>
+            <div class="scale-labels">
+              <span>0 Good</span>
+              <span>50 Mod</span>
+              <span>100 Sens</span>
+              <span>150 Unh</span>
+              <span>200 Very</span>
+              <span>300+ Haz</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Health & Activity Advice -->
+        <div class="health-advice-card">
+          <div class="health-icon" id="healthIcon">🍃</div>
+          <div>
+            <div class="health-text-title" id="healthTitle">Air quality is satisfactory</div>
+            <div class="health-text-desc" id="healthDesc">
+              Air pollution poses little or no risk. Enjoy outdoor activities and ventilate rooms freely.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Key Environmental Parameters -->
+      <section class="matrix-container">
+        <!-- PM2.5 -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">PM 2.5 (Fine Dust)</span>
+            <div class="param-icon">🌫️</div>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="pm25Val">9.2</span>
+            <span class="param-unit">µg/m³</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="pm25Bar" style="width: 25%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>WHO Standard</span>
+            <span>&lt; 15 µg/m³</span>
+          </div>
+        </div>
+
+        <!-- PM10 -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">PM 10 (Coarse Particulate)</span>
+            <div class="param-icon">💨</div>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="pm10Val">18.5</span>
+            <span class="param-unit">µg/m³</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="pm10Bar" style="width: 30%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>Dust & Pollen</span>
+            <span>&lt; 45 µg/m³</span>
+          </div>
+        </div>
+
+        <!-- CO2 -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">Carbon Dioxide (CO₂)</span>
+            <div class="param-icon">🫧</div>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="co2Val">450</span>
+            <span class="param-unit">ppm</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="co2Bar" style="width: 20%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>Ventilation</span>
+            <span>&lt; 800 ppm</span>
+          </div>
+        </div>
+
+        <!-- TVOC / MQ-135 Gas -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">Total VOC / MQ-135</span>
+            <div class="param-icon">🧪</div>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="tvocVal">0.12</span>
+            <span class="param-unit">mg/m³</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="tvocBar" style="width: 15%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>Gas Sensor</span>
+            <span>Clean Range</span>
+          </div>
+        </div>
+
+        <!-- Temperature -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">Ambient Temperature</span>
+            <button class="btn" id="tempToggleBtn" style="padding: 2px 6px; font-size: 0.7rem;">°C / °F</button>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="tempVal">23.4</span>
+            <span class="param-unit" id="tempUnit">°C</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="tempBar" style="width: 45%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>Thermal Comfort</span>
+            <span>20 - 26°C</span>
+          </div>
+        </div>
+
+        <!-- Humidity -->
+        <div class="param-card">
+          <div class="param-top">
+            <span class="param-name">Relative Humidity</span>
+            <div class="param-icon">💧</div>
+          </div>
+          <div class="param-val-row">
+            <span class="param-val" id="humidityVal">48</span>
+            <span class="param-unit">% RH</span>
+          </div>
+          <div class="param-status-bar">
+            <div class="param-status-fill" id="humidityBar" style="width: 48%;"></div>
+          </div>
+          <div class="param-desc">
+            <span>Optimal Range</span>
+            <span>40% - 60%</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Telemetry History Chart Section -->
+    <section class="charts-section">
+      <div class="chart-header">
+        <div class="chart-title-group">
+          <h3 class="card-title">Real-Time Sensor Telemetry Trends</h3>
+          <div class="chart-metric-selector">
+            <button class="metric-chip active" data-metric="aqi">AQI Index</button>
+            <button class="metric-chip" data-metric="pm25">PM 2.5</button>
+            <button class="metric-chip" data-metric="pm10">PM 10</button>
+            <button class="metric-chip" data-metric="co2">CO₂</button>
+            <button class="metric-chip" data-metric="temp">Temperature</button>
+            <button class="metric-chip" data-metric="humidity">Humidity</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <div class="chart-tabs">
+            <button class="chart-tab-btn active" data-range="live">Live</button>
+            <button class="chart-tab-btn" data-range="1h">1 Hr</button>
+            <button class="chart-tab-btn" data-range="24h">24 Hr</button>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn" id="exportCsvBtn" title="Export as CSV">📥 CSV</button>
+            <button class="btn" id="exportJsonBtn" title="Export as JSON">JSON</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Canvas Plot -->
+      <div class="canvas-wrapper">
+        <canvas id="telemetryChart"></canvas>
+      </div>
+
+      <!-- Summary Statistics Row -->
+      <div class="chart-stats-summary">
+        <div class="stat-box">
+          <div class="stat-label">Minimum Observed</div>
+          <div class="stat-value" id="statMin">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Maximum Observed</div>
+          <div class="stat-value" id="statMax">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Average Mean</div>
+          <div class="stat-value" id="statAvg">--</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Logged Data Points</div>
+          <div class="stat-value" id="statSamples">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>AeroPulse IoT Monitoring System &bull; Real-time Firebase Sync &bull; Microcontroller Ready</p>
+    </footer>
+  </div>
+
+  <!-- Firebase Configuration Modal -->
+  <dialog class="custom-modal" id="firebaseModal">
+    <div class="modal-body-glass">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span>🔥 Firebase Realtime Database Setup</span>
+        </h3>
+        <button class="close-btn" id="closeFirebaseBtn">&times;</button>
+      </div>
+      
+      <form id="firebaseConfigForm">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="fbApiKey">API Key</label>
+            <input type="text" id="fbApiKey" class="form-input" placeholder="AIzaSy..." required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="fbProjectId">Project ID</label>
+            <input type="text" id="fbProjectId" class="form-input" placeholder="my-air-monitor" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="fbDbUrl">Database URL (Realtime DB)</label>
+          <input type="url" id="fbDbUrl" class="form-input" placeholder="https://my-project-rtdb.firebaseio.com" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="fbAuthDomain">Auth Domain</label>
+            <input type="text" id="fbAuthDomain" class="form-input" placeholder="my-air-monitor.firebaseapp.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="fbPath">Database Ref Path</label>
+            <input type="text" id="fbPath" class="form-input" placeholder="airQuality" value="airQuality">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="fbStorage">Storage Bucket</label>
+            <input type="text" id="fbStorage" class="form-input" placeholder="my-air-monitor.appspot.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="fbSenderId">Messaging Sender ID</label>
+            <input type="text" id="fbSenderId" class="form-input" placeholder="123456789">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="fbAppId">App ID</label>
+          <input type="text" id="fbAppId" class="form-input" placeholder="1:123456:web:abcd...">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save & Connect Feed</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Hardware & Arduino Code Modal -->
+  <dialog class="custom-modal" id="hardwareModal" style="max-width: 750px;">
+    <div class="modal-body-glass">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span>🛠️ Microcontroller Firmware & Wiring</span>
+        </h3>
+        <button class="close-btn" id="closeHardwareBtn">&times;</button>
+      </div>
+
+      <div class="chart-tabs" style="margin-bottom: 16px;">
+        <button class="chart-tab-btn hw-tab-btn active" data-hw="esp8266">ESP8266 (NodeMCU)</button>
+        <button class="chart-tab-btn hw-tab-btn" data-hw="esp32">ESP32</button>
+        <button class="chart-tab-btn hw-tab-btn" data-hw="wiring">Wiring & Pinout</button>
+      </div>
+
+      <div id="esp8266Section">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">Arduino C++ Sketch with Firebase-ESP-Client</span>
+          <button class="btn copy-code-btn" data-target="esp8266Code" style="padding: 4px 10px; font-size: 0.75rem;">Copy Code</button>
+        </div>
+        <div class="code-snippet" id="esp8266Code"></div>
+      </div>
+
+      <div id="esp32Section" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">ESP32 Multi-Sensor (MQ-135 + DHT22) Firmware</span>
+          <button class="btn copy-code-btn" data-target="esp32Code" style="padding: 4px 10px; font-size: 0.75rem;">Copy Code</button>
+        </div>
+        <div class="code-snippet" id="esp32Code"></div>
+      </div>
+
+      <div id="wiringSection" style="display: none; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+        <h4 style="color: var(--text-primary); margin-bottom: 8px;">Recommended Pin Connections:</h4>
+        <ul style="padding-left: 20px; margin-bottom: 14px;">
+          <li><strong>MQ-135 Gas Sensor</strong>: VCC &rarr; 5V (or Vin), GND &rarr; GND, AOUT &rarr; A0 (ESP8266) or GPIO 34 (ESP32 ADC1).</li>
+          <li><strong>DHT22 / DHT11 (Temp & Humidity)</strong>: VCC &rarr; 3.3V, GND &rarr; GND, DATA &rarr; D4 / GPIO 4 (with 10k pullup).</li>
+          <li><strong>PMS5003 / PMS7003 (Optional Laser Dust)</strong>: TX &rarr; SoftwareSerial RX (GPIO 16).</li>
+        </ul>
+        <div style="background: rgba(56, 189, 248, 0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+          💡 <em>Tip: For the MQ-135, allow a 24-48 hour initial burn-in period to achieve maximum sensor stability and accurate baseline calibration.</em>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Alerts Modal -->
+  <dialog class="custom-modal" id="alertsModal">
+    <div class="modal-body-glass">
+      <div class="modal-header">
+        <h3 class="modal-title">
+          <span>🔔 Air Quality Alert Settings</span>
+        </h3>
+        <button class="close-btn" id="closeAlertsBtn">&times;</button>
+      </div>
+
+      <form id="alertsForm">
+        <div class="form-group">
+          <label class="form-label" for="alertThresholdInput">Hazard AQI Trigger Threshold</label>
+          <input type="number" id="alertThresholdInput" class="form-input" min="50" max="500" value="150" required>
+          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">
+            Default is 150 (Unhealthy). Triggers a top warning banner and audible chime when crossed.
+          </span>
+        </div>
+
+        <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-top: 18px;">
+          <div>
+            <label class="form-label" style="margin-bottom: 0;">Audible Warning Sound</label>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Uses Web Audio API synthesizer</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="btn" id="testSoundBtn" style="padding: 4px 10px; font-size: 0.75rem;">🔊 Test Chime</button>
+            <input type="checkbox" id="soundToggleInput" style="width: 18px; height: 18px; cursor: pointer;">
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+          <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save Alert Preferences</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- App Core Module -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
